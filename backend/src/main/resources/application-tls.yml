@@ -1,0 +1,8 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: ${TLS_KEY_STORE:classpath:certs/localhost.p12}
+    key-store-password: ${TLS_KEY_STORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+
