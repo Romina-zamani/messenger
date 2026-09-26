@@ -80,3 +80,14 @@ The endpoint is `ws://localhost:8080/ws/chat`. It accepts JSON:
 
 The server validates and saves it, then broadcasts a server-owned event. The React client is added in the next lesson.
 
+### Test WebSocket in terminals
+
+Keep PostgreSQL and the backend running. In two new terminals run:
+
+```powershell
+mvn -f backend/pom.xml compile exec:java "-Dexec.mainClass=dev.mahdi.chat.websocket.WebSocketConsoleClient"
+```
+
+Choose different nicknames. A message sent in either terminal appears in both as a JSON `MESSAGE` event. Stop and reconnect a client to see stored history arrive before the `READY` event.
+
+Unlike Lesson 2's plain TCP protocol, WebSocket begins as HTTP. The client requests an upgrade, the server replies `101 Switching Protocols`, and then both sides exchange framed messages over the same connection.
