@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
@@ -79,7 +80,6 @@ test('live signals navigation loads a snapshot and applies one delta', async () 
   render(<App />);
   await user.click(screen.getByRole('button', { name: /live signals/i }));
 
-  expect(await screen.findByText('CPU 001')).toBeInTheDocument();
   const socket = WebSocket.instances.at(-1);
   act(() => {
     socket.open();
@@ -87,7 +87,20 @@ test('live signals navigation loads a snapshot and applies one delta', async () 
     socket.receive({ type: 'SIGNAL_UPDATED', id: 1, value: 91, status: 'CRITICAL', updatedAt: '2026-10-03T12:00:01Z', version: 1 });
   });
 
+  expect(await screen.findByText('CPU 001')).toBeInTheDocument();
   expect(screen.getByText('91.0')).toBeInTheDocument();
   expect(screen.getByText('Memory 002')).toBeInTheDocument();
   expect(global.fetch).toHaveBeenCalledTimes(1);
+});
+
+test('strict mode retires the obsolete signal socket', async () => {
+  const user = userEvent.setup();
+  global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => [] });
+  render(<StrictMode><App /></StrictMode>);
+  await user.click(screen.getByRole('button', { name: /live signals/i }));
+
+  const active = WebSocket.instances.filter((socket) => socket.readyState !== 3);
+  expect(active).toHaveLength(1);
+  act(() => active[0].receive({ type: 'READY' }));
+  expect(await screen.findByText(/no signals match/i)).toBeInTheDocument();
 });
