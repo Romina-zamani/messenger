@@ -18,12 +18,14 @@ class SignalApiIntegrationTest {
 
   @Test void snapshotEndpointReturnsPersistedSignals() throws Exception {
     HttpResponse<String> response = HttpClient.newHttpClient().send(
-      HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/signals")).GET().build(),
+      HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/signals"))
+        .header("Origin", "http://127.0.0.1:5173").GET().build(),
       HttpResponse.BodyHandlers.ofString());
     SignalView[] signals = json.readValue(response.body(), SignalView[].class);
     assertEquals(200, response.statusCode());
     assertEquals(1000, signals.length);
     assertNotNull(signals[0].id());
     assertFalse(signals[0].name().isBlank());
+    assertEquals("http://127.0.0.1:5173", response.headers().firstValue("access-control-allow-origin").orElse(null));
   }
 }

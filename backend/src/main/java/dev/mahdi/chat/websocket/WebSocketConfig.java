@@ -8,8 +8,8 @@ public class WebSocketConfig implements WebSocketConfigurer {
   private final SignalSocketHandler signals;
   public WebSocketConfig(ChatWebSocketHandler handler, SignalSocketHandler signals){this.handler=handler;this.signals=signals;}
   public void registerWebSocketHandlers(WebSocketHandlerRegistry registry){
-    registry.addHandler(handler,"/ws/chat").setAllowedOriginPatterns("http://localhost:*","https://localhost:*");
-    registry.addHandler(signals,"/ws/signals").setAllowedOriginPatterns("http://localhost:*","https://localhost:*");
+    registry.addHandler(handler,"/ws/chat").setAllowedOriginPatterns("http://localhost:*","https://localhost:*","http://127.0.0.1:*","https://127.0.0.1:*");
+    registry.addHandler(signals,"/ws/signals").setAllowedOriginPatterns("http://localhost:*","https://localhost:*","http://127.0.0.1:*","https://127.0.0.1:*");
   }
 }
 
