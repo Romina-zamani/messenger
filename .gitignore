@@ -8,4 +8,5 @@ frontend/dist/
 backend/src/main/resources/certs/*.p12
 backend/src/main/resources/certs/*.pem
 .superpowers/
+.worktrees/
 
