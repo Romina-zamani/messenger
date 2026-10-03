@@ -8,3 +8,8 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+signals:
+  simulator:
+    enabled: false
+  redis:
+    enabled: false

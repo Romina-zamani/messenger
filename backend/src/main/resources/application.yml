@@ -1,4 +1,8 @@
 spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/messenger}
     username: ${DB_USER:messenger}
@@ -16,3 +20,10 @@ management:
         include: health,info
 server:
   port: 8080
+signals:
+  simulator:
+    enabled: ${SIGNAL_SIMULATOR_ENABLED:true}
+    interval-ms: ${SIGNAL_SIMULATOR_INTERVAL_MS:100}
+    initial-delay-ms: ${SIGNAL_SIMULATOR_INITIAL_DELAY_MS:1000}
+  redis:
+    enabled: ${SIGNAL_REDIS_ENABLED:true}

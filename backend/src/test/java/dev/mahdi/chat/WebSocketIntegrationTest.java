@@ -46,9 +46,19 @@ class WebSocketIntegrationTest {
     }
   }
 
-  private SocketPeer connect() {
-    return new SocketPeer(URI.create("ws://localhost:" + port + "/ws/chat"));
+  @Test void signalSocketStartsWithReadyAndFeedStatusEvents() throws Exception {
+    try (SocketPeer peer = connect("/ws/signals")) {
+      assertTrue(peer.take().contains("\"type\":\"READY\""));
+      String status = peer.take();
+      assertTrue(status.contains("\"type\":\"FEED_STATUS\""));
+      assertTrue(status.contains("\"status\":\"DEGRADED\""));
+    }
   }
+
+  private SocketPeer connect() {
+    return connect("/ws/chat");
+  }
+  private SocketPeer connect(String path) { return new SocketPeer(URI.create("ws://localhost:" + port + path)); }
 
   private static final class SocketPeer implements WebSocket.Listener, AutoCloseable {
     private final BlockingQueue<String> events = new LinkedBlockingQueue<>();

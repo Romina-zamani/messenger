@@ -16,12 +16,12 @@ PostgreSQL messages table
 
 `MessageEntity` maps Java fields to database columns. `MessageRepository` supplies SQL operations. `MessageService` validates input and owns the transaction. Flyway runs `V1__create_messages.sql` once and records it in `flyway_schema_history`.
 
-### Start PostgreSQL
+### Start PostgreSQL and Redis
 
 From the project root:
 
 ```powershell
-docker compose up -d postgres
+docker compose up -d postgres redis
 docker compose ps
 ```
 
@@ -69,6 +69,14 @@ Stop and restart the backend with `Ctrl+C` and `mvn ... spring-boot:run`. Query 
 Run `mvn -f backend/pom.xml test`. Tests use a temporary H2 database in PostgreSQL compatibility mode, so they are fast and do not change your learning database.
 
 Exercise: add a second Flyway file named `V2__add_edited_flag.sql` that adds an `edited BOOLEAN NOT NULL DEFAULT FALSE` column. Never edit V1 after it has run.
+
+## Live Signals
+
+The backend seeds 1,000 server telemetry records in PostgreSQL. Every 100 ms the simulator updates one row, then publishes only that committed row's delta to the Redis `messenger:signals` channel. The browser loads its initial state from `GET /api/signals` and receives subsequent updates from `ws://localhost:8080/ws/signals`.
+
+PostgreSQL is authoritative. If Redis is unavailable, database updates continue and connected clients see a degraded feed state. A reconnect reloads the PostgreSQL snapshot before reopening the WebSocket.
+
+Useful configuration variables are `REDIS_HOST`, `REDIS_PORT`, `SIGNAL_SIMULATOR_ENABLED`, and `SIGNAL_SIMULATOR_INTERVAL_MS`.
 
 ## Lesson 4 preview: WebSocket
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatSocket } from './useChatSocket';
+import { LiveSignalsPage } from './LiveSignalsPage';
 
 const MAX_NICKNAME = 30;
 const MAX_MESSAGE = 500;
@@ -190,7 +191,12 @@ function formatTime(value) {
 
 export default function App() {
   const [nickname, setNickname] = useState('');
-  return nickname
-    ? <ChatRoom nickname={nickname} onLeave={() => setNickname('')} />
-    : <JoinScreen onJoin={setNickname} />;
+  const [page, setPage] = useState('chat');
+  return <>
+    <nav className="site-nav" aria-label="Primary navigation">
+      <strong>Java Messenger</strong>
+      <div><button type="button" aria-current={page === 'chat' ? 'page' : undefined} onClick={() => setPage('chat')}>Chat</button><button type="button" aria-current={page === 'signals' ? 'page' : undefined} onClick={() => setPage('signals')}>Live Signals</button></div>
+    </nav>
+    {page === 'signals' ? <LiveSignalsPage /> : nickname ? <ChatRoom nickname={nickname} onLeave={() => setNickname('')} /> : <JoinScreen onJoin={setNickname} />}
+  </>;
 }

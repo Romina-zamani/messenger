@@ -65,3 +65,29 @@ test('server errors are announced to the user', async () => {
 
   expect(screen.getByRole('alert')).toHaveTextContent('Message is too long.');
 });
+
+test('live signals navigation loads a snapshot and applies one delta', async () => {
+  const user = userEvent.setup();
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => [
+      { id: 1, name: 'CPU 001', category: 'CPU', unit: '%', value: 42, status: 'HEALTHY', updatedAt: '2026-10-03T12:00:00Z', version: 0 },
+      { id: 2, name: 'Memory 002', category: 'MEMORY', unit: '%', value: 64, status: 'HEALTHY', updatedAt: '2026-10-03T12:00:00Z', version: 0 }
+    ]
+  });
+
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: /live signals/i }));
+
+  expect(await screen.findByText('CPU 001')).toBeInTheDocument();
+  const socket = WebSocket.instances.at(-1);
+  act(() => {
+    socket.open();
+    socket.receive({ type: 'READY' });
+    socket.receive({ type: 'SIGNAL_UPDATED', id: 1, value: 91, status: 'CRITICAL', updatedAt: '2026-10-03T12:00:01Z', version: 1 });
+  });
+
+  expect(screen.getByText('91.0')).toBeInTheDocument();
+  expect(screen.getByText('Memory 002')).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+});

@@ -1,6 +1,6 @@
 # Lesson 6 — React WebSocket UI
 
-This browser client connects to the Java endpoint at `ws://localhost:8080/ws/chat`.
+This browser client connects to the Java chat endpoint at `ws://localhost:8080/ws/chat` and the telemetry endpoint at `ws://localhost:8080/ws/signals`.
 
 ## What happens when you send
 
@@ -36,6 +36,8 @@ Open the URL printed by Vite, normally `http://localhost:5173`. Open it in two t
 
 - `src/App.jsx` contains the visible React components and local form state.
 - `src/useChatSocket.js` owns the WebSocket connection, incoming events, sending, and reconnect behavior.
+- `src/useSignals.js` loads the PostgreSQL snapshot and applies Redis-backed WebSocket deltas.
+- `src/LiveSignalsPage.jsx` renders the searchable telemetry summary and table.
 - `src/styles.css` contains the responsive and accessible visual design.
 - `src/App.test.jsx` proves the browser/server message behavior with a fake WebSocket.
 
@@ -45,6 +47,8 @@ Start the backend with the TLS profile described in `../docs/lesson-05-tls.md`, 
 
 ```text
 VITE_WS_URL=wss://localhost:8443/ws/chat
+VITE_SIGNALS_WS_URL=wss://localhost:8443/ws/signals
+VITE_API_URL=https://localhost:8443
 ```
 
 Restart Vite after changing an environment file. The browser must trust the local certificate before `wss://` can connect.
