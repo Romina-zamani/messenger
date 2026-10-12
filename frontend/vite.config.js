@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      '/api': { target: process.env.BACKEND_URL || 'http://localhost:8080' },
+      '/ws': { target: process.env.BACKEND_URL || 'http://localhost:8080', ws: true }
+    }
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',

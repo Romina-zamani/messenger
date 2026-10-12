@@ -68,7 +68,7 @@ Stop and restart the backend with `Ctrl+C` and `mvn ... spring-boot:run`. Query 
 
 Run `mvn -f backend/pom.xml test`. Tests use a temporary H2 database in PostgreSQL compatibility mode, so they are fast and do not change your learning database.
 
-Exercise: add a second Flyway file named `V2__add_edited_flag.sql` that adds an `edited BOOLEAN NOT NULL DEFAULT FALSE` column. Never edit V1 after it has run.
+Exercise: add the next unused Flyway version that adds an `edited BOOLEAN NOT NULL DEFAULT FALSE` column. V1–V4 are already assigned. Never edit a migration after it has run.
 
 ## Live Signals
 
@@ -80,13 +80,35 @@ Useful configuration variables are `REDIS_HOST`, `REDIS_PORT`, `SIGNAL_SIMULATOR
 
 ## Lesson 4 preview: WebSocket
 
-The endpoint is `ws://localhost:8080/ws/chat`. It accepts JSON:
+The endpoint is `ws://localhost:8080/ws/chat`. It requires an authenticated session and accepts JSON:
 
 ```json
-{"nickname":"Alice","content":"Hello"}
+{"content":"Hello"}
 ```
 
-The server validates and saves it, then broadcasts a server-owned event. The React client is added in the next lesson.
+The server obtains the sender from the authenticated session, validates and saves the message, then broadcasts a server-owned event. Supplying a different nickname cannot change the sender. V4 links new messages to user IDs; existing messages keep their original nicknames and have no user ID.
+
+## Account login: Java learning guide
+
+1. `user/AccountService.java` validates registration and calls `PasswordEncoder.encode`. BCrypt stores a salted hash, not the original password. It writes the account through `UserRepository`.
+2. `user/AuthController.java` exposes registration and the current account. Its response contains only ID and username, never the password hash.
+3. `user/SecurityConfig.java` defines the security rules. Spring Security handles the login POST, checks the password, rotates the session ID, and keeps the authenticated user in an HTTP session. Logout invalidates that session.
+4. `websocket/ChatSessions.java` connects that HTTP session to live sockets and closes them when the session ends. `ChatWebSocketHandler` uses the authenticated principal (the server's representation of the user) as the sender.
+5. `MessageService.createForUser` stores both the account ID and its username. Existing nickname-only messages are not assigned to new accounts.
+
+Authentication endpoints:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/auth/csrf` | Obtain a token and header name for the next POST |
+| POST | `/api/auth/register` | JSON `{ "username": "romina", "password": "your chosen password" }`; creates an account (201), but does not log in |
+| POST | `/api/auth/login` | Form-encoded `username` and `password`; starts a session (204) |
+| GET | `/api/auth/me` | Returns account ID/username, or 401 when signed out |
+| POST | `/api/auth/logout` | Ends the session (204) |
+
+All POSTs require the CSRF token header and session cookie. Obtain a fresh token after login/logout because security rotates it. The React client does this automatically. Account names are trimmed and lowercased; duplicate names return 409. Invalid registration returns 400, bad credentials return 401, and missing CSRF returns 403.
+
+The session lives in this Java process and is lost on restart; account data remains in PostgreSQL. The room is still shared by all signed-in users. Email recovery, login rate limiting, and private conversations are not included in this learning step. Use HTTPS and `SERVER_SERVLET_SESSION_COOKIE_SECURE=true` when hosting beyond localhost. The existing signals demo remains public.
 
 ### Test WebSocket in terminals
 
@@ -96,6 +118,6 @@ Keep PostgreSQL and the backend running. In two new terminals run:
 mvn -f backend/pom.xml compile exec:java "-Dexec.mainClass=dev.mahdi.chat.websocket.WebSocketConsoleClient"
 ```
 
-Choose different nicknames. A message sent in either terminal appears in both as a JSON `MESSAGE` event. Stop and reconnect a client to see stored history arrive before the `READY` event.
+First register accounts in the browser. The terminal client now asks for a registered username and password before opening its WebSocket. When launched through Maven, password input may be visible; the prompt warns you. A message sent in either terminal appears in both as a JSON `MESSAGE` event. Stop and reconnect a client to see stored history arrive before the `READY` event.
 
 Unlike Lesson 2's plain TCP protocol, WebSocket begins as HTTP. The client requests an upgrade, the server replies `101 Switching Protocols`, and then both sides exchange framed messages over the same connection.

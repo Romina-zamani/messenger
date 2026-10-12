@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useChatSocket } from './useChatSocket';
 import { LiveSignalsPage } from './LiveSignalsPage';
+import { AuthScreen } from './AuthScreen';
+import { authPost, currentAccount } from './authApi';
 
-const MAX_NICKNAME = 30;
 const MAX_MESSAGE = 500;
 
 function ConnectionStatus({ state }) {
@@ -18,56 +19,6 @@ function ConnectionStatus({ state }) {
       <span className="connection__dot" aria-hidden="true" />
       {labels[state]}
     </div>
-  );
-}
-
-function JoinScreen({ onJoin }) {
-  const [nickname, setNickname] = useState('');
-  const cleaned = nickname.trim();
-  const isValid = cleaned.length > 0 && cleaned.length <= MAX_NICKNAME;
-
-  function submit(event) {
-    event.preventDefault();
-    if (isValid) onJoin(cleaned);
-  }
-
-  return (
-    <main className="join-layout">
-      <section className="join-copy" aria-labelledby="join-title">
-        <p className="eyebrow">Lesson 6 · Browser client</p>
-        <h1 id="join-title">See your Java server speak WebSocket.</h1>
-        <p className="lead">Open this page in two browser tabs. Every message travels to Java, is saved, and comes back to every connected client.</p>
-        <ol className="flow-list" aria-label="Message journey">
-          <li><span>1</span><div><strong>Browser sends JSON</strong><small>Your nickname and message use one WebSocket connection.</small></div></li>
-          <li><span>2</span><div><strong>Java validates and saves</strong><small>The backend assigns the ID and timestamp.</small></div></li>
-          <li><span>3</span><div><strong>Server broadcasts</strong><small>Every connected browser receives the accepted message.</small></div></li>
-        </ol>
-      </section>
-
-      <section className="join-panel" aria-label="Join the messenger">
-        <div className="mark" aria-hidden="true">JM</div>
-        <h2>Join the shared room</h2>
-        <p>Choose a nickname for this browser session. No account or password is used in this lesson.</p>
-        <form onSubmit={submit}>
-          <label htmlFor="nickname">Nickname</label>
-          <input
-            id="nickname"
-            name="nickname"
-            value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
-            maxLength={MAX_NICKNAME}
-            autoComplete="nickname"
-            autoFocus
-            placeholder="For example, Mahdi"
-          />
-          <div className="field-help">
-            <span>Shown beside your messages</span>
-            <span>{nickname.length}/{MAX_NICKNAME}</span>
-          </div>
-          <button className="primary-button" type="submit" disabled={!isValid}>Join shared room</button>
-        </form>
-      </section>
-    </main>
   );
 }
 
@@ -93,8 +44,9 @@ function LearningRail({ nickname }) {
   );
 }
 
-function ChatRoom({ nickname, onLeave }) {
-  const { connection, messages, error, send, reconnect } = useChatSocket(nickname);
+function ChatRoom({ account, onLeave, onSessionLost, loggingOut }) {
+  const nickname = account.username;
+  const { connection, messages, error, send, reconnect } = useChatSocket(nickname, onSessionLost);
   const [content, setContent] = useState('');
   const endRef = useRef(null);
 
@@ -122,7 +74,7 @@ function ChatRoom({ nickname, onLeave }) {
           </div>
           <div className="header-actions">
             <ConnectionStatus state={connection} />
-            <button className="text-button" type="button" onClick={onLeave}>Leave</button>
+            <button className="text-button" type="button" disabled={loggingOut} onClick={onLeave}>{loggingOut ? 'Logging out…' : 'Log out'}</button>
           </div>
         </header>
 
@@ -141,7 +93,7 @@ function ChatRoom({ nickname, onLeave }) {
               <p>Send the first message, or open another browser tab to see the Java server broadcast between clients.</p>
             </div>
           ) : messages.map((message) => {
-            const mine = message.sender === nickname;
+            const mine = message.senderId != null && message.senderId === account.id;
             return (
               <article className={`message ${mine ? 'message--mine' : ''}`} key={message.id ?? `${message.sentAt}-${message.sender}`}>
                 <div className="message__meta">
@@ -190,13 +142,35 @@ function formatTime(value) {
 }
 
 export default function App() {
-  const [nickname, setNickname] = useState('');
+  const [account, setAccount] = useState(undefined);
+  const [authError, setAuthError] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
   const [page, setPage] = useState('chat');
+  const sessionLost = useCallback(() => {
+    setAccount(null);
+    setAuthError('Your session ended. Please sign in again.');
+  }, []);
+  useEffect(() => {
+    let active = true;
+    currentAccount().then(value => { if (active) setAccount(value); })
+      .catch(() => { if (active) { setAccount(null); setAuthError('Could not check your session. Please sign in again.'); } });
+    return () => { active = false; };
+  }, []);
+  async function logout() {
+    setLoggingOut(true);
+    setAuthError('');
+    try { await authPost('logout'); setAccount(null); }
+    catch (error) { setAuthError(error.message); }
+    finally { setLoggingOut(false); }
+  }
   return <>
     <nav className="site-nav" aria-label="Primary navigation">
       <strong>Java Messenger</strong>
       <div><button type="button" aria-current={page === 'chat' ? 'page' : undefined} onClick={() => setPage('chat')}>Chat</button><button type="button" aria-current={page === 'signals' ? 'page' : undefined} onClick={() => setPage('signals')}>Live Signals</button></div>
     </nav>
-    {page === 'signals' ? <LiveSignalsPage /> : nickname ? <ChatRoom nickname={nickname} onLeave={() => setNickname('')} /> : <JoinScreen onJoin={setNickname} />}
+    {authError && <p role="alert" className="error-notice">{authError}</p>}
+    {page === 'signals' ? <LiveSignalsPage /> : account === undefined ? <p role="status">Checking your session…</p>
+      : account ? <ChatRoom key={account.id} account={account} onLeave={logout} onSessionLost={sessionLost} loggingOut={loggingOut} />
+        : <AuthScreen onLogin={value => { setAccount(value); setAuthError(''); }} />}
   </>;
 }

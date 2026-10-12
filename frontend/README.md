@@ -1,12 +1,12 @@
 # Lesson 6 — React WebSocket UI
 
-This browser client connects to the Java chat endpoint at `ws://localhost:8080/ws/chat` and the telemetry endpoint at `ws://localhost:8080/ws/signals`.
+The chat uses account login and a session cookie. Vite proxies `/api` and `/ws` to the Java backend at `http://localhost:8080`, so authentication and chat share the browser's origin. The existing Live Signals demonstration remains public.
 
 ## What happens when you send
 
 ```text
 React browser
-  -- { nickname, content } --> Java WebSocket handler
+  -- { content } ----------> Java WebSocket handler (authenticated session)
   <-- MESSAGE event -------- Java saves and broadcasts
 ```
 
@@ -30,11 +30,15 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open the URL printed by Vite, normally `http://localhost:5173`. Open it in two tabs, use different nicknames, and send messages.
+Open `http://localhost:5173`, choose **Create an account**, then register. Usernames use 3–30 letters, numbers, or underscores and are stored lowercase. Passwords require at least 12 characters and at most 72 UTF-8 bytes. Registration signs you in automatically.
+
+To test two different users, use separate browser profiles or a private window: tabs in one profile share the same session cookie. Refreshing restores your account; **Log out** invalidates the session and closes its chat sockets. Idle HTTP sessions expire after 30 minutes; WebSocket traffic alone does not renew them.
 
 ## Important files
 
 - `src/App.jsx` contains the visible React components and local form state.
+- `src/AuthScreen.jsx` contains the registration and login forms.
+- `src/authApi.js` obtains CSRF tokens and sends authentication requests.
 - `src/useChatSocket.js` owns the WebSocket connection, incoming events, sending, and reconnect behavior.
 - `src/useSignals.js` loads the PostgreSQL snapshot and applies Redis-backed WebSocket deltas.
 - `src/LiveSignalsPage.jsx` renders the searchable telemetry summary and table.
@@ -43,15 +47,16 @@ Open the URL printed by Vite, normally `http://localhost:5173`. Open it in two t
 
 ## Use secure WebSocket
 
-Start the backend with the TLS profile described in `../docs/lesson-05-tls.md`, then create `frontend/.env.local`:
+For the backend TLS lesson, start Java with the TLS profile described in `../docs/lesson-05-tls.md`. Before starting Vite, set its target and trusted public certificate in PowerShell:
 
-```text
-VITE_WS_URL=wss://localhost:8443/ws/chat
-VITE_SIGNALS_WS_URL=wss://localhost:8443/ws/signals
-VITE_API_URL=https://localhost:8443
+```powershell
+$env:BACKEND_URL='https://localhost:8443'
+# NODE_EXTRA_CA_CERTS must point to a PEM certificate exported from your local certificate.
+$env:NODE_EXTRA_CA_CERTS='C:\path\to\localhost.pem'
+npm.cmd run dev
 ```
 
-Restart Vite after changing an environment file. The browser must trust the local certificate before `wss://` can connect.
+Keep chat on its default same-origin URL; remove old `VITE_WS_URL` overrides. This encrypts the Vite-to-backend connection, not the browser-to-Vite HTTP connection. For deployment, serve the frontend over HTTPS with `/api` and `/ws` forwarded to Java and secure session cookies. Do not disable certificate validation.
 
 ## Exercise
 
